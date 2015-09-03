@@ -7,5 +7,13 @@
     "type": "git",
     "url": "github.com/surma/twitt0r"
   },
-  "author": "Surma <surma@surma.link>"
+  "engines": {
+    "node": ">=0.12.0"
+  },
+  "author": "Surma <surma@surma.link>",
+  "dependencies": {
+    "babel-core": "^5.8.23",
+    "gulp": "^3.9.0",
+    "gulp-load-plugins": "^0.10.0"
+  }
 }
