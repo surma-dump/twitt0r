@@ -1,0 +1,11 @@
+{
+  "name": "twitt0r",
+  "version": "0.0.1",
+  "description": "A web-based Twitter client",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "github.com/surma/twitt0r"
+  },
+  "author": "Surma <surma@surma.link>"
+}
