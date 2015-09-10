@@ -1,0 +1,114 @@
+<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<dom-module id="oauth1-ajax">
+  <template>
+    <iron-ajax
+      id="ajax"
+      method="[[method]]"
+      params="[[params]]"></iron-ajax>
+  </template>
+
+  <script>
+    Polymer({
+      is: 'oauth1-ajax',
+      properties: {
+        method: {
+          type: String,
+          reflectToAttribute: true
+        },
+        url: {
+          type: String,
+          reflectToAttribute: true
+        }
+        consumerKey: {
+          type: String,
+          reflectToAttribute: true
+        },
+        consumerSecret: {
+          type: String,
+          reflectToAttribute: true
+        },
+        headers: {
+          type: Object,
+        },
+        params: {
+          type: Object,
+        },
+        oauthVersion: {
+          type: String,
+          reflectToAttribute: true,
+          value: '1.0'
+        },
+        _signatureMethod: {
+          type: String,
+          value: 'HMAC-SHA1'
+        },
+        token: {
+          type: String,
+        },
+        _cryptoKeyPromise: {
+          type: Object,
+          compute: '_computeCryptoKeyPromise(consumerSecret, token)'
+        }
+      },
+      _computeCryptoKeyPromise: function() {
+        var signingKey = encodeURIComponent(consumerSecret) + '&'
+        if(token !== '') {
+          signingKey += encodeURIComponent(token);
+        }
+        return window.crypto.importKey(
+          'raw',
+          new TextEncoder('utf-8').encode(signingKey),
+          {
+            name: 'HMAC',
+            hash: {name: 'SHA-1'}
+          },
+          false,
+          ['sign']
+        );
+      },
+      generateRequest: function() {
+        var augmentedHeaders = Object.assign({}, this._headers);
+        var timestamp = Math.floor(new Date() / 1000);
+        // TODO: Use base64([randomBytes]);
+        var nonce = btoa('Something random');
+
+        var oauthHeaders = {
+          'oauth_consumer_key': this.consumerKey,
+          'oauth_nonce': nonce,
+          'oauth_timestamp': timestamp,
+          'oauth_signature_method': this._signatureMethod,
+          'oauth_version': this.oauthVersion
+        };
+        if(this._token !== '') {
+          oauthHeaders['oauth_token'] = this._token;
+        }
+
+        var p = Object.assign({}, params);
+        Object.keys(oauthHeaders).forEach(k =>
+          p[k] = oauthHeaders[k];
+        });
+
+        var parameterList = [];
+        Object.keys(p).forEach(k =>
+          parameterList.push(encodeURIComponent(k) + '=' + encodeURIComponent(p[k]));
+        });
+        var parameterString = parameterList.sort().join('&');
+        var signatureBaseString = [method.toUpperCase(), encodeURIComponent(url), parameterString].join('&');
+
+        cryptoKeyPromise.then(key => {
+          return window.crypto.subtle.sign(
+            'HMAC',
+            key,
+            new TextEncoder('utf-8').encode(signatureBaseString)
+          );
+        }).then(binarySignature =>
+          var stringSignature = btoa(binarySignature);
+          parameterList.push('oauth_signature=' + stringSignature)
+          augmentedHeaders['Authorization'] = 'OAuth ' + parameterList.join(', ');
+          this.$.ajax.headers = augmentedHeaders;
+          this.$.ajax.generateRequest();
+        );
+      }
+    });
+  </script>
+</dom-module>

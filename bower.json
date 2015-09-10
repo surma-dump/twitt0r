@@ -1,0 +1,14 @@
+{
+  "name": "twitt0r",
+  "version": "0.0.1",
+  "authors": [
+    "Surma <surma@surma.link>"
+  ],
+  "description": "A web-based Twitter client",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "iron-ajax": "PolymerElements/iron-ajax#~1.0.4",
+    "polymer": "Polymer/polymer#~1.1.2"
+  }
+}

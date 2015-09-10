@@ -1,11 +1,22 @@
 import gulp from 'gulp';
 import gulpLoadPlugins from 'gulp-load-plugins';
+import browserSync from 'browser-sync';
 import pkg from './package.json';
 
 var $ = gulpLoadPlugins();
+var bs = browserSync.create();
 
-gulp.task('test', () => {
-  console.log('hai' + pkg.version);
+gulp.task('serve', () => {
+  bs.init({
+    server: {
+      baseDir: 'app',
+      routes: {
+        '/bower_components': 'bower_components',
+        '/elements': 'elements'
+      },
+      directory: true
+    },
+    reloadOnRestart: true,
+    open: false
+  });
 });
-
-gulp.task('default', ['test']);
