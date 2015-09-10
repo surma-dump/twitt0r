@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../../bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../../bower_components/web-component-tester/browser.js"></script>
+
+    <!-- Step 1: import the element to test -->
+    <link rel="import" href="../oauth1-ajax.html">
+  </head>
+  <body>
+
+    <!-- You can use the document as a place to set up your fixtures. -->
+    <oauth1-ajax></oauth1-ajax>
+
+    <script>
+      var myEl = document.querySelector('oauth1-ajax');
+      suite('<oauth1-ajax>', function() {
+        test('recalcuates crypto key', function(done) {
+          expect(myEl._cryptoKeyPromiseValid).to.be.false;
+          myEl.consumerKey = 'consumer-key';
+          myEl.consumerSecret = 'consumer-secret';
+          myEl._computeCryptoKeyPromise();
+          expect(myEl._cryptoKeyPromiseValid).to.be.true;
+          myEl._cryptoKeyPromise.then(key => {
+            expect(key.algorithm.name).to.equal('HMAC');
+            done();
+          }).catch(err => {
+            done(new Error(err));
+          });
+        });
+        test('sets OAuth request header', function(done) {
+          myEl.consumerSecret = 'consumer-secret';
+          myEl.token = 'token';
+          myEl.url = 'http://example.com';
+          myEl.params = {
+            'query': 'some query',
+            'limit': 500
+          };
+          myEl.method = 'GET';
+          myEl.$.ajax = {
+            generateRequest: () => {
+              try {
+                expect(myEl.$.ajax.headers).to.include.keys('Authorization');
+                var authHeader = myEl.$.ajax.headers['Authorization'];
+                expect(authHeader).to.include('OAuth');
+                expect(authHeader).to.include('oauth_consumer_key=');
+                expect(authHeader).to.include('oauth_nonce=');
+                expect(authHeader).to.include('oauth_timestamp=');
+                expect(authHeader).to.include('oauth_signature=');
+                expect(authHeader).to.include('oauth_version=');
+              } catch (e) { done(e); }
+              done();
+            }
+          };
+          myEl.generateRequest();
+        });
+      });
+    </script>
+
+  </body>
+</html>

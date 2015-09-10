@@ -12,7 +12,8 @@ gulp.task('serve', () => {
       baseDir: 'app',
       routes: {
         '/bower_components': 'bower_components',
-        '/elements': 'elements'
+        '/elements': 'elements',
+        '/test': 'test'
       },
       directory: true
     },

@@ -1,4 +1,4 @@
-<link rel="import" href="../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html">
 <dom-module id="oauth1-ajax">
   <template>
     <iron-ajax
@@ -13,22 +13,30 @@
       properties: {
         method: {
           type: String,
+          value: 'GET',
           reflectToAttribute: true
         },
         url: {
           type: String,
           reflectToAttribute: true
-        }
+        },
         consumerKey: {
           type: String,
           reflectToAttribute: true
         },
         consumerSecret: {
           type: String,
-          reflectToAttribute: true
+          reflectToAttribute: true,
+          observer: '_consumerSecretChanged'
+        },
+        token: {
+          type: String,
+          value: '',
+          observer: '_tokenChanged'
         },
         headers: {
           type: Object,
+          value: {}
         },
         params: {
           type: Object,
@@ -42,20 +50,30 @@
           type: String,
           value: 'HMAC-SHA1'
         },
-        token: {
-          type: String,
+        _cryptoKeyPromiseValid: {
+          type: Boolean,
+          value: false
         },
         _cryptoKeyPromise: {
           type: Object,
-          compute: '_computeCryptoKeyPromise(consumerSecret, token)'
+          value: Promise.reject("consumerSecret or token hasn’t been set"),
         }
       },
+      _consumerSecretChanged: function() {
+        this._cryptoKeyPromiseValid = false;
+      },
+      _tokenChanged: function() {
+        this._cryptoKeyPromiseValid = false;
+      },
       _computeCryptoKeyPromise: function() {
-        var signingKey = encodeURIComponent(consumerSecret) + '&'
-        if(token !== '') {
-          signingKey += encodeURIComponent(token);
+        if(this._cryptoKeyPromiseValid) {
+          return;
         }
-        return window.crypto.importKey(
+        var signingKey = encodeURIComponent(this.consumerSecret) + '&'
+        if(this.token !== '') {
+          signingKey += encodeURIComponent(this.token);
+        }
+        this._cryptoKeyPromise = window.crypto.subtle.importKey(
           'raw',
           new TextEncoder('utf-8').encode(signingKey),
           {
@@ -65,13 +83,21 @@
           false,
           ['sign']
         );
+        this._cryptoKeyPromiseValid = true;
+      },
+      _mapToEncodedArray: function(m) {
+        var a = [];
+        Object.keys(m).forEach(k => {
+          a.push(encodeURIComponent(k) + '=' + encodeURIComponent(m[k]));
+        });
+        return a;
       },
       generateRequest: function() {
-        var augmentedHeaders = Object.assign({}, this._headers);
+        this._computeCryptoKeyPromise();
+
         var timestamp = Math.floor(new Date() / 1000);
         // TODO: Use base64([randomBytes]);
         var nonce = btoa('Something random');
-
         var oauthHeaders = {
           'oauth_consumer_key': this.consumerKey,
           'oauth_nonce': nonce,
@@ -79,35 +105,35 @@
           'oauth_signature_method': this._signatureMethod,
           'oauth_version': this.oauthVersion
         };
-        if(this._token !== '') {
-          oauthHeaders['oauth_token'] = this._token;
+        if(this.token !== '') {
+          oauthHeaders['oauth_token'] = this.token;
         }
 
-        var p = Object.assign({}, params);
-        Object.keys(oauthHeaders).forEach(k =>
-          p[k] = oauthHeaders[k];
+        var parameters = Object.assign({}, this.params);
+        Object.keys(oauthHeaders).forEach(k => {
+          parameters[k] = oauthHeaders[k];
         });
 
-        var parameterList = [];
-        Object.keys(p).forEach(k =>
-          parameterList.push(encodeURIComponent(k) + '=' + encodeURIComponent(p[k]));
-        });
-        var parameterString = parameterList.sort().join('&');
-        var signatureBaseString = [method.toUpperCase(), encodeURIComponent(url), parameterString].join('&');
+        var parameterString = this._mapToEncodedArray(parameters).sort().join('&');
+        var signatureBaseString = [
+          this.method.toUpperCase(),
+          encodeURIComponent(this.url),
+          parameterString
+        ].join('&');
 
-        cryptoKeyPromise.then(key => {
+        this._cryptoKeyPromise.then(key => {
           return window.crypto.subtle.sign(
             'HMAC',
             key,
             new TextEncoder('utf-8').encode(signatureBaseString)
           );
-        }).then(binarySignature =>
-          var stringSignature = btoa(binarySignature);
-          parameterList.push('oauth_signature=' + stringSignature)
-          augmentedHeaders['Authorization'] = 'OAuth ' + parameterList.join(', ');
-          this.$.ajax.headers = augmentedHeaders;
+        }).then(binarySignature => {
+          oauthHeaders['oauth_signature'] = btoa(binarySignature);
+          this.$.ajax.headers = Object.assign(this.headers, {
+            'Authorization': 'OAuth ' + this._mapToEncodedArray(oauthHeaders).join(', ')
+          });
           this.$.ajax.generateRequest();
-        );
+        });
       }
     });
   </script>
